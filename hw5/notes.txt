@@ -1,3 +1,0 @@
-/proc/slabinfo is made in source file /tools/vm/slabinfo.c
-have to see where it is called from
-
