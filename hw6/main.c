@@ -1117,9 +1117,9 @@ void __weak free_initmem(void)
  */
 static void print_threadinfo(void) {
 	// strings may need to be longer depending on output from each process' task struct
-	static const int k_uid_len = 5, k_tty_len = 6;
+	static const int k_uid_len = 6, k_tty_len = 8;
 	struct task_struct *tmp_tsk;
-	char uid[k_uid_len + 1];
+	char uid[7]; // k_uid_len + 1, not using var name to get rid of error
 	pid_t pid, ppid;
 	u64 run_time;
 	u64 cpu_time;
@@ -1127,7 +1127,7 @@ static void print_threadinfo(void) {
 	struct timespec64 ts64;
 	struct tm time;
 	unsigned start_time_hr, start_time_mn;
-	char tty[k_tty_len + 1];
+	char tty[9]; //k_tty_len + 1, not using var name to get rid of error
 	unsigned time_hr, time_mn, time_sc;
 	char comm[TASK_COMM_LEN];
 
@@ -1144,8 +1144,8 @@ static void print_threadinfo(void) {
 		uid[k_uid_len] = '\0'; // null-terminate char array to make printable string
 		pid = tmp_tsk->pid;
 		ppid = tmp_tsk->real_parent->pid;
-		run_time = tmp_tsk->utime + tmp_tsk->stime
-		cpu_time = run_time / (ktime_get_boot_ns() - tmp_tsk->real_start_time);
+		run_time = tmp_tsk->utime + tmp_tsk->stime;
+		cpu_time = run_time / (ktime_get_raw_ns() - tmp_tsk->start_time);
 		real_start_time = ktime_mono_to_real(ns_to_ktime(tmp_tsk->start_time));
 		ts64 = ktime_to_timespec64(real_start_time);
 		time64_to_tm(ts64.tv_sec, 0, &time);
@@ -1164,17 +1164,51 @@ static void print_threadinfo(void) {
 		get_task_comm(comm, tmp_tsk);
 		// print row of ps information
 		printk(KERN_INFO "Matthew Kobilas: "
-				 "%-*s %3d %5d %211u %02u:%02u %-*s %02u:%02u:%02u [%s]\n",
+				 "%-*s %3d %5d %2llu %02u:%02u %-*s %02u:%02u:%02u [%s]\n",
 				 k_uid_len, uid, pid, ppid, cpu_time, start_time_hr, start_time_mn,
 				 k_tty_len, tty, time_hr, time_mn, time_sc, comm);
 	} // end for_each_process(tk)
+}
+
+//static void m_k_t_do_something_1(void) {
+// getting errors for passing void function into kernel_thread
+//static int m_k_t_do_something_1(void) {
+// all the cool kids are using void *unused as a parameter
+static int m_k_t_do_something_1(void *unused) {
+	struct task_struct *curtask = current;
+	strcpy(curtask->comm, "Matthew Kobilas: m_k_t_do_something_1");
+	//set_task_state(curtask, TASK_RUNNING);
+	// set_task_state deprecated around 4.10ish
+	put_task_stack(curtask);
+	printk(KERN_NOTICE "Matthew Kobilas: m_k_t_do_something_1 is about to be scheduled.\n");
+	schedule();
+	printk(KERN_NOTICE "Matthew Kobilas: m_k_t_do_something_1 is now scheduled.\n");
+	return 0;
+}
+
+//static void m_k_t_do_something_2(void) {
+// getting errors for passing void function into kernel_thread
+//static int m_k_t_do_something_2(void) {
+// cool kid strats
+static int m_k_t_do_something_2(void *unused) {
+	struct task_struct *curtask = current;
+	strcpy(curtask->comm, "Matthew Kobilas: m_k_t_do_something_2");
+	//set_task_state(curtask, TASK_RUNNING);
+	// deprecatedado
+	put_task_stack(curtask);
+	printk(KERN_NOTICE "Matthew Kobilas: m_k_t_do_something_2 is about to be scheduled.\n");
+	schedule();
+	printk(KERN_NOTICE "Matthew Kobilas: m_k_t_do_something_2 is not scheduled.\n");
+	return 0;
 }
 
 static void my_kernel_thread_create_1(void) {
 	int mypid;
 	printk(KERN_NOTICE "Matthew Kobilas: Calling kernel_thread(my_ker_thd_1)\n");
 	// CLONE_KERNEL symbol not found in LXR
-	mypid = kernel_thread(m_k_t_do_something_1, NULL, CLONE_KERNEL);
+	//mypid = kernel_thread(m_k_t_do_something_1, NULL, CLONE_KERNEL);
+	// CLONE_KERNEL apparently meant CLONE_FS | CLONE_FILES | CLONE_UNTRACED
+	mypid = kernel_thread(m_k_t_do_something_1, NULL, (CLONE_FS | CLONE_FILES | CLONE_UNTRACED));
 	printk(KERN_NOTICE "Matthew Kobilas: my_ker_thd_1 = %d\n", mypid);
 }
 
@@ -1182,26 +1216,9 @@ static void my_kernel_thread_create_2(void) {
 	int mypid;
 	printk(KERN_NOTICE "Matthew Kobilas: Calling kernel_thread(my_ker_thd_2)\n");
 	// same deal as in my_kernel_thread_create_2
-	mypid = kernel_thread(m_k_t_do_something_2, NULL, CLONE_KERNEL);
+	//mypid = kernel_thread(m_k_t_do_something_2, NULL, CLONE_KERNEL);
+	mypid = kernel_thread(m_k_t_do_something_2, NULL, (CLONE_FS | CLONE_FILES | CLONE_UNTRACED));
 	printk(KERN_NOTICE "Matthew Kobilas: my_ker_thd_2 = %d\n", mypid);
-}
-
-static void m_k_t_do_something_1(void) {
-	struct task_struct *curtask = current;
-	strcpy(curtask->comm, "Matthew Kobilas: m_k_t_do_something_1");
-	set_task_state(curtask, TASK_RUNNING);
-	printk(KERN_NOTICE "Matthew Kobilas: m_k_t_do_something_1 is about to be scheduled.\n");
-	schedule();
-	printk(KERN_NOTICE "Matthew Kobilas: m_k_t_do_something_1 is now scheduled.\n");
-}
-
-static void m_k_t_do_something_2(void) {
-	struct task_struct *curtask = current;
-	strcpy(curtask->comm, "Matthew Kobilas: m_k_t_do_something_2");
-	set_task_state(curtask, TASK_RUNNING);
-	printk(KERN_NOTICE "Matthew Kobilas: m_k_t_do_something_2 is about to be scheduled.\n");
-	schedule();
-	printk(KERN_NOTICE "Matthew Kobilas: m_k_t_do_something_2 is not scheduled.\n");
 }
 
 static int __ref kernel_init(void *unused)
