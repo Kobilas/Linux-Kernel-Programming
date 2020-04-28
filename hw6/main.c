@@ -1198,7 +1198,7 @@ static int m_k_t_do_something_2(void *unused) {
 	put_task_stack(curtask);
 	printk(KERN_NOTICE "Matthew Kobilas: m_k_t_do_something_2 is about to be scheduled.\n");
 	schedule();
-	printk(KERN_NOTICE "Matthew Kobilas: m_k_t_do_something_2 is not scheduled.\n");
+	printk(KERN_NOTICE "Matthew Kobilas: m_k_t_do_something_2 is now scheduled.\n");
 	return 0;
 }
 
@@ -1220,6 +1220,37 @@ static void my_kernel_thread_create_2(void) {
 	mypid = kernel_thread(m_k_t_do_something_2, NULL, (CLONE_FS | CLONE_FILES | CLONE_UNTRACED));
 	printk(KERN_NOTICE "Matthew Kobilas: my_ker_thd_2 = %d\n", mypid);
 }
+
+DEFINE_PER_CPU(struct task_struct *, my_hotplugd);
+
+static int should_run_my_hotplugd(unsigned cpu) {
+	return 1;
+}
+
+static void create_my_hotplugd(unsigned cpu) {
+	printk(KERN_INFO "Matthew Kobilas: my_hotplugd created on CPU %u.\n", cpu);
+}
+
+static void run_my_hotplugd(unsigned cpu) {
+	printk(KERN_INFO "Matthew Kobilas: my_hotplugd running on CPU %u.\n", cpu);
+	// sleep thread for 30 seconds, don't want to spam logs
+	ssleep(30);
+}
+
+static struct smp_hotplug_thread my_hotplug_threads = {
+	.store			= &my_hotplugd,
+	.create			= create_my_hotplugd,
+	.thread_should_run	= should_run_my_hotplugd,
+	.thread_fn		= run_my_hotplugd,
+	.thread_comm		= "Matthew Kobilas: my_hotplugd/%u",
+};
+
+static int __init spawn_my_hotplugd(void) {
+	BUG_ON(smpboot_register_percpu_thread(&my_hotplug_threads));
+	return 0;
+}
+
+early_initcall(spawn_my_hotplugd);
 
 static int __ref kernel_init(void *unused)
 {
@@ -1253,7 +1284,7 @@ static int __ref kernel_init(void *unused)
 	my_kernel_thread_create_1();
 	my_kernel_thread_create_2();
 	// threads should now have been created, print process list again
-	printk(KERN_INFO "Matthew Kobilas: m_k_t_do_something threads are created.\n");
+	printk(KERN_INFO "Matthew Kobilas: m_k_t_do_something threads have been created.\n");
 	print_threadinfo();
 	// homework example mentions executing function:
 	//run_init_process("/sbin/init");
