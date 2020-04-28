@@ -4154,18 +4154,22 @@ asmlinkage __visible void __sched schedule(void)
 	 * Adding variables for tracking the number of context switches 
 	 * and calculating time of context switches
 	 */
-	static unsigned context_switch_count = 0;
-	const unsigned MAX_CONTEXT_SWITCH_PRINTS = 100;
+	static unsigned switch_count = 0;
+	const unsigned MIN_SWITCH_PRINTS_0 = 0;
+	const unsigned MAX_SWITCH_PRINTS_0 = 100;
+	const unsigned MIN_SWITCH_PRINTS_1 = 1000;
+	const unsigned MAX_SWITCH_PRINTS_1 = 1100;
 	ktime_t real_start_time;
 	struct timespec64 tmp_ts64;
 	struct tm tmp_tm;
 	// print information before context switch
-	if (context_switch_count < MAX_CONTEXT_SWITCH_PRINTS) {
+	if (((switch_count >= MIN_SWITCH_PRINTS_0) && (switch_count < MAX_SWITCH_PRINTS_0)) ||
+	   ((switch_count >= MIN_SWITCH_PRINTS_1) && (switch_count < MAX_SWITCH_PRINTS_1))) {
 		real_start_time = ktime_mono_to_real(ns_to_ktime(tsk->start_time));
 		tmp_ts64 = ktime_to_timespec64(real_start_time);
 		time64_to_tm(tmp_ts64.tv_sec, 0, &tmp_tm);
-		printk(KERN_INFO "Matthew Kobilas: Context switching from %d[%s] on CPU %u at %02u:%02u:%02u.\n",
-				 tsk->pid, tsk->comm, task_cpu(tsk),
+		printk(KERN_INFO "Matthew Kobilas swch %u: Switching from %d[%s] on CPU %u at %02u:%02u:%02u\n",
+				 switch_count, tsk->pid, tsk->comm, task_cpu(tsk),
 				 tmp_tm.tm_hour, tmp_tm.tm_min, tmp_tm.tm_sec);
 	}
 
@@ -4177,12 +4181,14 @@ asmlinkage __visible void __sched schedule(void)
 	} while (need_resched());
 	sched_update_worker(tsk);
 	// print information after context switch
-	if (context_switch_count++ < MAX_CONTEXT_SWITCH_PRINTS) {
+	if (((switch_count >= MIN_SWITCH_PRINTS_0) && (switch_count < MAX_SWITCH_PRINTS_0)) ||
+	   ((switch_count >= MIN_SWITCH_PRINTS_1) && (switch_count < MAX_SWITCH_PRINTS_1))) {
+		switch_count++;
 		real_start_time = ktime_mono_to_real(ns_to_ktime(tsk->start_time));
 		tmp_ts64 = ktime_to_timespec64(real_start_time);
 		time64_to_tm(tmp_ts64.tv_sec, 0, &tmp_tm);
-		printk(KERN_INFO "Matthew Kobilas: Context switched from %d[%s] on CPU %u at %02u:%02u:%02u.\n",
-				 tsk->pid, tsk->comm, task_cpu(tsk),
+		printk(KERN_INFO "Matthew Kobilas swch: Switched from %d[%s] on CPU %u at %02u:%02u:%02u\n",
+				 switch_count, tsk->pid, tsk->comm, task_cpu(tsk),
 				 tmp_tm.tm_hour, tmp_tm.tm_min, tmp_tm.tm_sec);
 	}
 }

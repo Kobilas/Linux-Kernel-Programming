@@ -2408,7 +2408,11 @@ long _do_fork(struct kernel_clone_args *args)
 	// static to keep the value of fork_count the same between invocations of _do_fork
 	// necessary to actually keep track of number of times a process has been forked
 	static unsigned fork_count = 0;
-	const unsigned MAX_FORK_PRINTS = 100;
+	const unsigned MIN_FORK_PRINTS_0 = 0;
+	const unsigned MAX_FORK_PRINTS_0 = 100;
+	// wanted more interesting output, so I am spreading the results out among more forks
+	const unsigned MIN_FORK_PRINTS_1 = 300;
+	const unsigned MAX_FORK_PRINTS_1 = 400;
 	ktime_t real_start_time;
 	struct timespec64 tmp_ts64;
 	struct tm tmp_tm;
@@ -2437,8 +2441,10 @@ long _do_fork(struct kernel_clone_args *args)
 	 * We print that we are about to call functions to fork a new thread
 	 * In the usual case, this is for the first 100 kernel threads forked
 	 */
-	if (fork_count < MAX_FORK_PRINTS) {
-		printk(KERN_INFO "Matthew Kobilas: Calling functions to fork new thread.\n");
+	if (((fork_count >= MIN_FORK_PRINTS_0) && (fork_count < MAX_FORK_PRINTS_0)) || 
+	   ((fork_count >= MIN_FORK_PRINTS_1) && (fork_count < MAX_FORK_PRINTS_1))) {
+		printk(KERN_INFO "Matthew Kobilas fork %u: Forking new thread...\n",
+				 fork_count);
 	}
 
 	p = copy_process(NULL, trace, NUMA_NO_NODE, args);
@@ -2476,12 +2482,14 @@ long _do_fork(struct kernel_clone_args *args)
 	 * Ended up adding the time anyway because its not difficult with task_struct being
 	 * right here, might need to add more imports though
 	 */
-	if (fork_count++ < MAX_FORK_PRINTS) {
+	if (((fork_count >= MIN_FORK_PRINTS_0) && (fork_count < MAX_FORK_PRINTS_0)) ||
+	   ((fork_count >= MIN_FORK_PRINTS_1) && (fork_count < MAX_FORK_PRINTS_1))) {
+		fork_count++;
 		real_start_time = ktime_mono_to_real(ns_to_ktime(p->start_time));
 		tmp_ts64 = ktime_to_timespec64(real_start_time);
 		time64_to_tm(tmp_ts64.tv_sec, 0, &tmp_tm);
-		printk(KERN_INFO "Matthew Kobilas: Thread %d[%s] at %02u:%02u:%02u.\n",
-				 p->pid, p->comm,
+		printk(KERN_INFO "Matthew Kobilas fork %u: Thread %d[%s] forked at %02u:%02u:%02u\n",
+				 fork_count, p->pid, p->comm,
 				 tmp_tm.tm_hour, tmp_tm.tm_min, tmp_tm.tm_sec);
 	}
 
