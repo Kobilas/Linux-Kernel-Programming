@@ -2408,11 +2408,10 @@ long _do_fork(struct kernel_clone_args *args)
 	// static to keep the value of fork_count the same between invocations of _do_fork
 	// necessary to actually keep track of number of times a process has been forked
 	static unsigned fork_count = 0;
-	const int FORK_PRINT_LIMITER = 100;
+	const unsigned MAX_FORK_PRINTS = 100;
 	ktime_t real_start_time;
 	struct timespec64 tmp_ts64;
 	struct tm tmp_tm;
-	unsigned start_time_hour, start_time_min;
 	
 	/*
 	 * Determine whether and which event to report to ptracer.  When
@@ -2438,7 +2437,7 @@ long _do_fork(struct kernel_clone_args *args)
 	 * We print that we are about to call functions to fork a new thread
 	 * In the usual case, this is for the first 100 kernel threads forked
 	 */
-	if (fork_count < FORK_PRINT_LIMITER) {
+	if (fork_count < MAX_FORK_PRINTS) {
 		printk(KERN_INFO "Matthew Kobilas: Calling functions to fork new thread.\n");
 	}
 
@@ -2477,14 +2476,13 @@ long _do_fork(struct kernel_clone_args *args)
 	 * Ended up adding the time anyway because its not difficult with task_struct being
 	 * right here, might need to add more imports though
 	 */
-	if (fork_count++ < FORK_PRINT_LIMITER) {
+	if (fork_count++ < MAX_FORK_PRINTS) {
 		real_start_time = ktime_mono_to_real(ns_to_ktime(p->start_time));
 		tmp_ts64 = ktime_to_timespec64(real_start_time);
 		time64_to_tm(tmp_ts64.tv_sec, 0, &tmp_tm);
-		start_time_hour = tm.tm_hour;
-		start_time_min = tm.tm_min;
-		printk(KERN_INFO "Matthew Kobilas: Thread %d created by %s at %02u:%02u.\n",
-				 p->pid, p->comm, start_time_hour, start_time_min);
+		printk(KERN_INFO "Matthew Kobilas: Thread %d[%s] at %02u:%02u:%02u.\n",
+				 p->pid, p->comm,
+				 tmp_tm.tm_hour, tmp_tm.tm_min, tmp_tm.tm_sec);
 	}
 
 	/* forking complete and child started to run, tell ptracer */
