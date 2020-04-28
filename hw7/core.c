@@ -4181,7 +4181,7 @@ asmlinkage __visible void __sched schedule(void)
 		real_start_time = ktime_mono_to_real(ns_to_ktime(tsk->start_time));
 		tmp_ts64 = ktime_to_timespec64(real_start_time);
 		time64_to_tm(tmp_ts64.tv_sec, 0, &tmp_tm);
-		printk(KERN_HOUR "Matthew Kobilas: Context switched from %d[%s] on CPU %u at %02u:%02u:%02u.\n",
+		printk(KERN_INFO "Matthew Kobilas: Context switched from %d[%s] on CPU %u at %02u:%02u:%02u.\n",
 				 tsk->pid, tsk->comm, task_cpu(tsk),
 				 tmp_tm.tm_hour, tmp_tm.tm_min, tmp_tm.tm_sec);
 	}
