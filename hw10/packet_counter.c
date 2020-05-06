@@ -38,7 +38,7 @@ static int packet_counter_release(struct inode *inode, struct file *fp) {
 // timer for every 5 minutes as defined above in counting_period_in_ms
 struct timer_list packet_counter_timer;
 // struct for /proc/ entry
-static struct proc_dir_entry *packet_counter_fp;
+static struct proc_dir_entry *packet_counter_fentry;
 // filename for /proc/ entry
 static const char *const packet_counter_file_name = "packet_counter";
 // file_operations fstruct for packet_counter_fp
@@ -55,12 +55,12 @@ static void packet_counter_flush(struct timer_list *timer) {
 	mod_timer(timer, jiffies + msecs_to_jiffies(counting_period_in_ms));
 	n = snprintf(str_buf, PACKET_COUNTER_BUFFER_SIZE,
 		     "Internet Packet Counting Statistics (updated per 5 minutes):\n"
-		     "# outgoing packets	: %ld\n"
-		     "# incoming packets	: %ld\n"
-		     "# queue merges		: %ld\n"
-		     "# enqueue ops		: %ld\n"
-		     "# dequeue ops		: %ld\n"
-		     "# requeue ops		: %ld\n",
+		     "# outgoing packets	: %lld\n"
+		     "# incoming packets	: %lld\n"
+		     "# queue merges		: %lld\n"
+		     "# enqueue ops		: %lld\n"
+		     "# dequeue ops		: %lld\n"
+		     "# requeue ops		: %lld\n",
 		     atomic64_read(&packet_counter_out), atomic64_read(&packet_counter_in),
 		     atomic64_read(&packet_counter_merges), atomic64_read(&packet_counter_enq),
 		     atomic64_read(&packet_counter_deq), atomic64_read(&packet_counter_req));
@@ -72,24 +72,24 @@ static void packet_counter_flush(struct timer_list *timer) {
 	atomic64_set(&packet_counter_req, 0);
 	if (n < 0) {
 		printk(KERN_INFO "Matthew Kobilas pkt_cnt: failed to add string to buffer\n");
-		proc_set_size(packet_counter_fp, 0);
+		proc_set_size(packet_counter_fentry, 0);
 	} else if (n > PACKET_COUNTER_BUFFER_SIZE) {
 		printk(KERN_INFO "Matthew Kobilas pkt_cnt: string too large for buffer\n");
-		proc_set_size(packet_counter_fp, PACKET_COUNTER_BUFFER_SIZE);
+		proc_set_size(packet_counter_fentry, PACKET_COUNTER_BUFFER_SIZE);
 	} else {
-		prinkt(KERN_INFO "Matthew Kobilas pkt_cnt: updated /proc/ file with Internet packet statistics\n");
-		proc_set_size(packet_counter_fp, n);
+		printk(KERN_INFO "Matthew Kobilas pkt_cnt: updated /proc/ file with Internet packet statistics\n");
+		proc_set_size(packet_counter_fentry, n);
 	}
 }
 
 static int __init packet_counter_init(void) {
-	packet_counter_file_entry = proc_create(packet_counter_fp, 0, NULL, &packet_counter_fops);
-	if (!packet_counter_fp) {
+	packet_counter_fentry = proc_create(packet_counter_file_name, 0, NULL, &packet_counter_fops);
+	if (!packet_counter_fentry) {
 		printk(KERN_INFO "Matthew Kobilas pkt_cnt: error when opening packet_counter\n");
 		return -1;
 	}
-	proc_set_user(packet_counter_fp, KUIDT_INIT(0), KGIDT_INIT(0));
-	proc_set_size(packet_counter_fp, 0);
+	proc_set_user(packet_counter_fentry, KUIDT_INIT(0), KGIDT_INIT(0));
+	proc_set_size(packet_counter_fentry, 0);
 	timer_setup(&packet_counter_timer, packet_counter_flush, 0);
 	packet_counter_flush(&packet_counter_timer);
 	printk(KERN_INFO "Matthew Kobilas pkt_cnt: packet_counter module installed\n");
@@ -98,8 +98,8 @@ static int __init packet_counter_init(void) {
 
 static void __exit packet_counter_exit(void) {
 	del_timer(&packet_counter_timer);
-	proc_remove(packet_counter_fp);
-	prinkt(KERN_INFO "Matthew Kobilas pkt_cnt: packet_counter module removed\n");
+	proc_remove(packet_counter_fentry);
+	printk(KERN_INFO "Matthew Kobilas pkt_cnt: packet_counter module removed\n");
 }
 
 module_init(packet_counter_init);

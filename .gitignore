@@ -1,4 +1,9 @@
 exam1/
 a.out
 *.tgz
-
+*.o
+*.ko
+*.symvers
+*.order
+*.mod
+*.mod.c

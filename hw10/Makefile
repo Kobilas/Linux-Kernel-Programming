@@ -1,8 +1,4 @@
-ifneq($(KERNELRELEASE),)
-
-include Kbuild
-
-else
+obj-m += packet_counter.o
 
 KDIR ?= /lib/modules/5.5.5/build
 
@@ -13,4 +9,3 @@ install:
 clean:
 	$(MAKE) -C $(KDIR) M=$$PWD clean
 
-endif
